@@ -11,6 +11,15 @@ local flying = true
 local speed = 50
 local keys = {W = false, S = false, A = false, D = false, Space = false, LeftShift = false}
 
+-- Crear un LinearVelocity moderno para el motor actual de Roblox
+local attachment = Instance.new("Attachment", humanoidRootPart)
+local linearVelocity = Instance.new("LinearVelocity")
+linearVelocity.Attachment0 = attachment
+linearVelocity.MaxForce = math.huge
+linearVelocity.VectorVelocity = Vector3.new(0, 0, 0)
+linearVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
+linearVelocity.Parent = humanoidRootPart
+
 UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.W then keys.W = true end
     if input.KeyCode == Enum.KeyCode.S then keys.S = true end
@@ -30,25 +39,37 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 RunService.RenderStepped:Connect(function()
-    if not flying or not character or not humanoidRootPart or humanoid.Health <= 0 then return end
+    if not flying or not character or not humanoidRootPart or humanoid.Health <= 0 then
+        if linearVelocity then linearVelocity:Destroy() end
+        if attachment then attachment:Destroy() end
+        return
+    end
 
     humanoid:ChangeState(Enum.HumanoidStateType.Physics)
 
     local camera = workspace.CurrentCamera
-    local moveDirection = Vector3.new(0, 0, 0)
-    local cf = camera.CFrame
+    local lookVec = camera.CFrame.LookVector
+    local rightVec = camera.CFrame.RightVector
 
-    if keys.W then moveDirection = moveDirection + cf.LookVector end
-    if keys.S then moveDirection = moveDirection - cf.LookVector end
-    if keys.A then moveDirection = moveDirection - cf.RightVector end
-    if keys.D then moveDirection = moveDirection + cf.RightVector end
-    if keys.Space then moveDirection = moveDirection + Vector3.new(0, 1, 0) end
-    if keys.LeftShift then moveDirection = moveDirection - Vector3.new(0, 1, 0) end
+    local flatLook = Vector3.new(lookVec.X, 0, lookVec.Z).Unit
+    local flatRight = Vector3.new(rightVec.X, 0, rightVec.Z).Unit
+
+    local moveDirection = Vector3.new(0, 0, 0)
+    if keys.W then moveDirection = moveDirection + flatLook end
+    if keys.S then moveDirection = moveDirection - flatLook end
+    if keys.A then moveDirection = moveDirection - flatRight end
+    if keys.D then moveDirection = moveDirection + flatRight end
 
     if moveDirection.Magnitude > 0 then
         moveDirection = moveDirection.Unit * speed
     end
 
-    humanoidRootPart.AssemblyLinearVelocity = moveDirection
-    humanoidRootPart.CFrame = CFrame.new(humanoidRootPart.Position, humanoidRootPart.Position + cf.LookVector)
+    local verticalSpeed = 0
+    if keys.Space then verticalSpeed = speed end
+    if keys.LeftShift then verticalSpeed = -speed end
+
+    -- Aplicar la velocidad exacta en los 3 ejes sin que la gravedad del motor interfiera
+    linearVelocity.VectorVelocity = Vector3.new(moveDirection.X, verticalSpeed, moveDirection.Z)
+    
+    humanoidRootPart.CFrame = CFrame.new(humanoidRootPart.Position, humanoidRootPart.Position + flatLook)
 end)
