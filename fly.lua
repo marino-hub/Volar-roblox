@@ -1,78 +1,122 @@
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local ContextActionService = game:GetService("ContextActionService")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
 
+-- Crear interfaz gráfica flotante para móviles
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "MobileFlyGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 160, 0, 90)
+MainFrame.Position = UDim2.new(0.05, 0, 0.4, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.Parent = MainFrame
+
+-- Botón Activar / Desactivar
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Size = UDim2.new(0, 140, 0, 35)
+ToggleBtn.Position = UDim2.new(0, 10, 0, 10)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+ToggleBtn.Text = "Vuelo: OFF"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.TextSize = 14
+ToggleBtn.Font = Enum.Font.SourceSansBold
+ToggleBtn.Parent = MainFrame
+
+local BtnCorner = Instance.new("UICorner")
+BtnCorner.CornerRadius = UDim.new(0, 6)
+BtnCorner.Parent = ToggleBtn
+
+-- Botón Subir
+local UpBtn = Instance.new("TextButton")
+UpBtn.Size = UDim2.new(0, 65, 0, 30)
+UpBtn.Position = UDim2.new(0, 10, 0, 50)
+UpBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+UpBtn.Text = "SUBIR"
+UpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+UpBtn.TextSize = 12
+UpBtn.Font = Enum.Font.SourceSansBold
+UpBtn.Parent = MainFrame
+
+local UpCorner = Instance.new("UICorner")
+UpCorner.CornerRadius = UDim.new(0, 6)
+UpCorner.Parent = UpBtn
+
+-- Botón Bajar
+local DownBtn = Instance.new("TextButton")
+DownBtn.Size = UDim2.new(0, 65, 0, 30)
+DownBtn.Position = UDim2.new(0, 85, 0, 50)
+DownBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+DownBtn.Text = "BAJAR"
+DownBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+DownBtn.TextSize = 12
+DownBtn.Font = Enum.Font.SourceSansBold
+DownBtn.Parent = MainFrame
+
+local DownCorner = Instance.new("UICorner")
+DownCorner.CornerRadius = UDim.new(0, 6)
+DownCorner.Parent = DownBtn
+
+-- Variables de estado de vuelo
+local flying = false
 local speed = 50
-local moveVector = Vector3.new(0, 0, 0)
-local verticalInput = 0 -- 1 para subir, -1 para bajar, 0 quieto
+local upState = false
+local downState = false
 
--- Crear componentes de física modernos en el cliente
-local attachment = Instance.new("Attachment", humanoidRootPart)
-local linearVelocity = Instance.new("LinearVelocity")
-linearVelocity.Attachment0 = attachment
-linearVelocity.MaxForce = math.huge
-linearVelocity.VectorVelocity = Vector3.new(0, 0, 0)
-linearVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
-linearVelocity.Parent = humanoidRootPart
-
--- Capturar el movimiento del Joystick (funciona tanto para el dedo en pantalla como para WASD)
-local function onMove(actionName, inputState, inputObject)
-    if inputState == Enum.UserInputState.Cancel then
-        moveVector = Vector3.new(0, 0, 0)
-        return
-    end
-    -- El Humanoid.MoveDirection ya detecta automáticamente el joystick de celular o las teclas WASD
-    local cam = workspace.CurrentCamera
-    local dir = humanoid.MoveDirection
-    moveVector = dir * speed
-end
-
-ContextActionService:BindAction("FlyMove", onMove, false, Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D)
-
--- Controles para subir y bajar (Teclado y botones virtuales si aplica)
-UserInputService.InputBegan:Connect(function(input, gpe)
-    if input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.ButtonA then
-        verticalInput = 1
-    elseif input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.ButtonB then
-        verticalInput = -1
+ToggleBtn.MouseButton1Click:Connect(function()
+    flying = not flying
+    if flying then
+        ToggleBtn.Text = "Vuelo: ON"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 128)
+    else
+        ToggleBtn.Text = "Vuelo: OFF"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+        humanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     end
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.ButtonA or 
-       input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.ButtonB then
-        verticalInput = 0
-    end
-end)
+UpBtn.MouseButton1Down:Connect(function() upState = true end)
+UpBtn.MouseButton1Up:Connect(function() upState = false end)
+DownBtn.MouseButton1Down:Connect(function() downState = true end)
+DownBtn.MouseButton1Up:Connect(function() downState = false end)
 
--- Bucle principal de vuelo sincronizado con el cliente
+-- Bucle físico del vuelo móvil
 RunService.RenderStepped:Connect(function()
-    if not character or not humanoidRootPart or humanoid.Health <= 0 then
-        if linearVelocity then linearVelocity:Destroy() end
-        if attachment then attachment:Destroy() end
-        return
-    end
+    if not character or not humanoidRootPart or humanoid.Health <= 0 then return end
 
-    humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+    if flying then
+        humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+        
+        local camera = workspace.CurrentCamera
+        local lookVec = camera.CFrame.LookVector
+        local moveDir = humanoid.MoveDirection
+        
+        local verticalVel = 0
+        if upState then verticalVel = speed end
+        if downState then verticalVel = -speed end
 
-    local camera = workspace.CurrentCamera
-    local lookVec = camera.CFrame.LookVector
-    local flatLook = Vector3.new(lookVec.X, 0, lookVec.Z)
-    if flatLook.Magnitude > 0 then flatLook = flatLook.Unit else flatLook = Vector3.new(0, 0, 1) end
+        local finalVelocity = (moveDir * speed) + Vector3.new(0, verticalVel, 0)
+        humanoidRootPart.AssemblyLinearVelocity = finalVelocity
 
-    -- Calcular dirección basada en hacia dónde apunta la cámara y el joystick del celular
-    local moveDir = humanoid.MoveDirection
-    local velocity = (moveDir * speed) + Vector3.new(0, verticalInput * speed, 0)
-
-    linearVelocity.VectorVelocity = velocity
-
-    if moveDir.Magnitude > 0 then
-        humanoidRootPart.CFrame = CFrame.new(humanoidRootPart.Position, humanoidRootPart.Position + flatLook)
+        if moveDir.Magnitude > 0 then
+            local flatLook = Vector3.new(lookVec.X, 0, lookVec.Z)
+            if flatLook.Magnitude > 0 then
+                humanoidRootPart.CFrame = CFrame.new(humanoidRootPart.Position, humanoidRootPart.Position + flatLook.Unit)
+            end
+        end
     end
 end)
